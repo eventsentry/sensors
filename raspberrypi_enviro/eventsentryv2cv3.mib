@@ -1,0 +1,290 @@
+    EVENTSENTRY-MIB DEFINITIONS ::= BEGIN
+
+    IMPORTS
+            NOTIFICATION-GROUP,
+            OBJECT-GROUP
+                FROM SNMPv2-CONF
+            MODULE-IDENTITY, OBJECT-TYPE,
+            NOTIFICATION-TYPE,
+            enterprises
+                FROM SNMPv2-SMI
+            DisplayString, DateAndTime
+                FROM SNMPv2-TC;
+            
+    netikusnet MODULE-IDENTITY
+    
+    LAST-UPDATED "202112010000Z"
+    ORGANIZATION "NETIKUS.NET ltd"
+    CONTACT-INFO
+        "
+        NETIKUS.NET ltd
+        150 S. Wacker Drive
+        Suite 2400
+        Chicago, IL 60606
+        United States
+        Tel: +1 877-638-4587
+        Fax: +1 877-485-3975
+        Email: support@netikus.net
+        "
+
+    DESCRIPTION "This MIB ships with EventSentry and identifies the objects used for SNMP traps sent by the EventSentry event log monitoring agent."
+    
+    REVISION "202112010000Z"
+    DESCRIPTION "TODO"
+    
+    REVISION "201404100000Z"
+    DESCRIPTION "Added enums for event type"
+
+    REVISION "200902040000Z"
+    DESCRIPTION "Initial creation of EventSentryV2cV3.mib"
+       
+    ::= { enterprises 21600 }
+
+    eventsentry                 OBJECT IDENTIFIER ::= { netikusnet 1 }
+    eventsentryTraps            OBJECT IDENTIFIER ::= { eventsentry 1 }
+    eventlog                    OBJECT IDENTIFIER ::= { eventsentry 2 }
+    conformance                 OBJECT IDENTIFIER ::= { eventsentry 3 }
+    eventsentryNotifications    OBJECT IDENTIFIER ::= { eventsentry 4 }
+    environmentSensors          OBJECT IDENTIFIER ::= { eventsentry 5 }
+    enviro                      OBJECT IDENTIFIER ::= { environmentSensors 1 }
+    
+    -- Environment
+    sensorsTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF SensorEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+	"A table that returns all sensor readings"
+    ::= { enviro 1 }
+    
+    enviroObjectGroup OBJECT-GROUP
+    OBJECTS     { sensorValue, sensorType }
+    STATUS      current
+    DESCRIPTION 
+        "Table ojects"
+    ::= { enviro 2 }
+    
+    sensorEntry OBJECT-TYPE
+	SYNTAX	SensorEntry
+	MAX-ACCESS	not-accessible
+	STATUS	current
+	DESCRIPTION
+	"Current reading of a particular sensor"
+	INDEX { sensorIndex }
+	::= { sensorsTable 1 }
+    
+    SensorEntry ::= SEQUENCE {
+        sensorIndex     INTEGER (0 .. 2147483647),
+        sensorType      DisplayString,
+        sensorValue     INTEGER (0..65535)
+    }
+    
+    sensorIndex OBJECT-TYPE
+	SYNTAX	INTEGER (0 .. 2147483647)
+	MAX-ACCESS	not-accessible
+	STATUS	current
+	DESCRIPTION
+		"Sensor index"
+	::= { sensorEntry 1 }
+    
+    sensorType OBJECT-TYPE
+	SYNTAX	DisplayString
+	MAX-ACCESS	read-only
+	STATUS	current
+	DESCRIPTION
+		"Sensor Type"
+	::= { sensorEntry 2 }
+    
+    sensorValue OBJECT-TYPE
+	SYNTAX	INTEGER (0..65535)
+	MAX-ACCESS	read-only
+	STATUS	current
+	DESCRIPTION
+		"Sensor Value"
+	::= { sensorEntry 3 }
+
+    -- Event Log MIB Objects
+
+    eventNumber OBJECT-TYPE
+        SYNTAX      INTEGER (0 .. 2147483647)
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Corresponds to the event number of the event record"
+
+    ::= { eventlog 1 }
+
+    eventID OBJECT-TYPE
+        SYNTAX      INTEGER (0..65535)
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Corresponds to the event ID of the event record"
+
+    ::= { eventlog 2 }
+
+    eventType OBJECT-TYPE
+        SYNTAX      INTEGER {
+                success(0),
+                error(1),
+                warning(2),
+                information(4), 
+                auditSuccess(8),
+                auditFailure(16)
+        }
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Corresponds to the type of the event record."
+
+   ::= { eventlog 3 }
+   
+    log OBJECT-TYPE
+        SYNTAX      DisplayString
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Corresponds to the event log the event record was written to"
+
+    ::= { eventlog 4 }
+
+    eventSource OBJECT-TYPE
+        SYNTAX      DisplayString
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Corresponds to the event source of the event record"
+
+    ::= { eventlog 5 }
+
+    eventCategory OBJECT-TYPE
+        SYNTAX      DisplayString
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Corresponds to the event category of the event record (optional)"
+
+    ::= { eventlog 6 }
+
+    eventUser OBJECT-TYPE
+        SYNTAX      DisplayString
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Corresponds to the event user of the event record (optional)"
+
+    ::= { eventlog 7 }
+
+    eventComputer OBJECT-TYPE
+        SYNTAX      DisplayString
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Corresponds to the computer name of the event record"
+
+    ::= { eventlog 8 }
+
+    eventDescription OBJECT-TYPE
+        SYNTAX      DisplayString
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Corresponds to the event description of the event record"
+
+    ::= { eventlog 9 }
+
+    eventDate OBJECT-TYPE
+        SYNTAX      DisplayString
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "The time and date the event was written"
+
+    ::= { eventlog 10 }
+
+    eventDateTime OBJECT-TYPE
+        SYNTAX      DateAndTime
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "The time and date the event was written"
+
+    ::= { eventlog 11 }
+
+    customData OBJECT-TYPE
+        SYNTAX      DisplayString
+        MAX-ACCESS  accessible-for-notify
+        STATUS      current
+        DESCRIPTION "Custom data the sender can add to the trapß"
+
+    ::= { eventlog 12 }
+
+    -- Notifications
+
+    eventlogInformationNotification NOTIFICATION-TYPE
+        OBJECTS { eventNumber, eventID, eventType, log, eventSource, eventCategory, eventUser, eventComputer, eventDescription, eventDate, eventDateTime, customData }
+        STATUS  current
+        DESCRIPTION "Notification of information event log record"
+    ::= { eventsentryNotifications 1 }
+        
+    eventlogWarningNotification NOTIFICATION-TYPE
+        OBJECTS { eventNumber, eventID, eventType, log, eventSource, eventCategory, eventUser, eventComputer, eventDescription, eventDate, eventDateTime, customData }
+        STATUS  current
+        DESCRIPTION "Notification of warning event log record"
+    ::= { eventsentryNotifications 2 }
+    
+    eventlogErrorNotification NOTIFICATION-TYPE
+        OBJECTS { eventNumber, eventID, eventType, log, eventSource, eventCategory, eventUser, eventComputer, eventDescription, eventDate, eventDateTime, customData }
+        STATUS  current
+        DESCRIPTION "Notification of error event log record"
+    ::= { eventsentryNotifications 3 }
+
+    eventlogAuditSuccessNotification NOTIFICATION-TYPE
+        OBJECTS { eventNumber, eventID, eventType, log, eventSource, eventCategory, eventUser, eventComputer, eventDescription, eventDate, eventDateTime, customData }
+        STATUS  current
+        DESCRIPTION "Notification of audit success event log record"
+    ::= { eventsentryNotifications 4 }
+
+    eventlogAuditFailureNotification NOTIFICATION-TYPE
+        OBJECTS { eventNumber, eventID, eventType, log, eventSource, eventCategory, eventUser, eventComputer, eventDescription, eventDate, eventDateTime, customData }
+        STATUS  current
+        DESCRIPTION "Notification of audit failure event log record"
+    ::= { eventsentryNotifications 5 }
+
+    eventlogOtherNotification NOTIFICATION-TYPE
+        OBJECTS { eventNumber, eventID, eventType, log, eventSource, eventCategory, eventUser, eventComputer, eventDescription, eventDate, eventDateTime, customData }
+        STATUS  current
+        DESCRIPTION "Notification of unknown event log record"
+    ::= { eventsentryNotifications 6 }
+    
+    -- Conformance Information
+    eventLogConformance OBJECT IDENTIFIER ::= { conformance 1 }
+
+    eventLogGroups OBJECT IDENTIFIER ::= { eventLogConformance 1 }
+
+   -- Conformance Groups
+   
+    eventLogNotificationsGroup NOTIFICATION-GROUP
+        NOTIFICATIONS {
+            eventlogInformationNotification,
+            eventlogWarningNotification,
+            eventlogErrorNotification,
+            eventlogAuditSuccessNotification,
+            eventlogAuditFailureNotification,
+            eventlogOtherNotification
+        }
+            STATUS          current
+            DESCRIPTION     "The collection of event log based notifications."
+        
+        ::= { eventLogGroups 2 }
+    
+    eventLogEntry OBJECT-GROUP
+        OBJECTS {
+                    eventNumber,
+                    eventID,
+                    eventType,
+                    log,
+                    eventSource,
+                    eventCategory,
+                    eventUser,
+                    eventComputer,
+                    eventDescription,
+                    eventDate,
+                    eventDateTime,
+                    customData
+                }
+        STATUS      current
+        DESCRIPTION "Members of an event log entry"
+        
+        ::= { eventLogGroups 3 }
+
+END
