@@ -5,10 +5,15 @@
 # affect the LCD display
 
 thresholdTemp = 80
+thresholdHumidity = 10
+
+splashDelaySecs = 2
 
 fontSize = 17
+lcdColorText = (255, 255, 255)
 lcdColorBackground = (0, 170, 170)
-lcdColorTempHigh = (255, 0, 0)
+lcdColorRed = (255, 0, 0)
+lcdColorOrange = (255, 165, 0)
 ########################################
 
 import ST7735
@@ -55,9 +60,22 @@ def get_cpu_temperature():
     return temp
 
 # Display text on LCD
-def lcdShowText(x, y, bgColor, text):
-    draw.rectangle((0, 0, 160, 80), bgColor)
-    draw.text((x, y), text, font=font, fill=text_colour)
+def lcdShowText(x, y, bgColor, text, center):
+    draw.rectangle((x, y, WIDTH, HEIGHT), bgColor)
+
+    if center == 1:
+        size_x, size_y = draw.textsize(text, font)
+        x = WIDTH/2-size_x/2
+
+    draw.text((x, y), text, font=font, fill=lcdColorText)
+    disp.display(img)
+
+def lcdShowTime():
+    draw.rectangle((0, 0, WIDTH, HEIGHT/4), (82, 82, 82))
+    # Calculate text size
+    size_x, size_y = draw.textsize(time.strftime('%H:%M:%S'), font)
+    x = WIDTH/2-size_x/2
+    draw.text((x, 0), time.strftime('%H:%M:%S'), font=font, fill=lcdColorText)
     disp.display(img)
 
 # Tuning factor for compensation. Decrease this number to adjust the
@@ -108,22 +126,18 @@ while True:
     except EOFError:
         break
 
-time.sleep(2)
+time.sleep(splashDelaySecs)
 
+# Show host name and IP address
 img = Image.new('RGB', (WIDTH, HEIGHT), color=(0, 0, 0))
 draw = ImageDraw.Draw(img)
-
 font = ImageFont.truetype(UserFont, fontSize)
-text_colour = (255, 255, 255)
-
-message = hostName + "\n" + hostIP
-
-size_x, size_y = draw.textsize(message, font)
+#size_x, size_y = draw.textsize(message, font)
 
 # Display host name and IP address
-lcdShowText(0, 0, lcdColorBackground, message)
+lcdShowText(0, 0, lcdColorBackground, hostName + "\n" + hostIP, 0)
 
-time.sleep(2)
+time.sleep(splashDelaySecs)
 # ######################################
 
 bus = SMBus(1)
@@ -166,12 +180,26 @@ Light: {:05.2f} Lux
 Proximity: {:05.2f} Unfiltered: {:05.2f}
 """.format(temperature_adj, pressure, humidity, lux, proximity, proximity_raw))
 
-    # Display stats on LCD
+    ######### Display stats on LCD #########
     lcdBackground = lcdColorBackground
-    message = "{}\nTemp: {:.1f}F\nHumidity: {:.1f}%\nLight: {:.1f}lux".format(time.strftime('%H:%M:%S'), temperature_adj, humidity, lux)
+
+    message = "Temp: {:.1f}F".format(temperature_adj)
     if temperature_adj >= thresholdTemp:
-        lcdBackground = lcdColorTempHigh
-    lcdShowText(0, 0, lcdBackground, message)
+        lcdBackground = lcdColorRed
+    lcdShowText(0, (HEIGHT/4)*1, lcdBackground, message, 1)
+
+    message = "Humidity: {:.1f}%".format(humidity)
+    if humidity < thresholdHumidity:
+        lcdBackground = lcdColorOrange
+    else:
+        lcdBackground = lcdColorBackground
+    lcdShowText(0, (HEIGHT/4)*2, lcdBackground, message, 1)
+
+    message = "Light: {:.1f}lux".format(lux)
+    lcdShowText(0, (HEIGHT/4)*3, lcdColorBackground, message, 1)
+
+    lcdShowTime()
+    ######### Display stats on LCD #########
 
     with open('/tmp/es_temperature.txt', 'w') as f:
         f.write("{:.0f}".format(temperature_adj))
