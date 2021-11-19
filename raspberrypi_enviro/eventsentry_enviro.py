@@ -4,10 +4,13 @@
 # These values can be adjusted and only
 # affect the LCD display
 
+sensorUpdateInterval = 2
+lcdRefreshInterval = 10
+
 thresholdTemp = 80
 thresholdHumidity = 10
 
-splashDelaySecs = 2
+splashDelaySecs = 3
 
 fontSize = 17
 lcdColorText = (255, 255, 255)
@@ -132,7 +135,6 @@ time.sleep(splashDelaySecs)
 img = Image.new('RGB', (WIDTH, HEIGHT), color=(0, 0, 0))
 draw = ImageDraw.Draw(img)
 font = ImageFont.truetype(UserFont, fontSize)
-#size_x, size_y = draw.textsize(message, font)
 
 # Display host name and IP address
 lcdShowText(0, 0, lcdColorBackground, hostName + "\n" + hostIP, 0)
@@ -146,33 +148,48 @@ bme280 = BME280(i2c_dev=bus)
 last_proximity_alert = 0
 last_proximity = 0
 
+timeSensorCheck = 0
+timeLCDUpdate = 0
+
 while True:
     timeNow = int(time.time())
 
-    temperature = bme280.get_temperature() * 9.0/5.0+32
-    temperature_cpu = get_cpu_temperature()
-    cpu_temps = cpu_temps[1:] + [temperature_cpu]
-    temperature_cpu_avg = sum(cpu_temps) / len(cpu_temps)
+    if (timeNow - timeSensorCheck) >= sensorUpdateInterval:
+        temperature = bme280.get_temperature() * 9.0/5.0+32
+        temperature_cpu = get_cpu_temperature()
+        cpu_temps = cpu_temps[1:] + [temperature_cpu]
+        temperature_cpu_avg = sum(cpu_temps) / len(cpu_temps)
     
-    temperature_adj = temperature - ((temperature_cpu_avg - temperature) / factor)
-    pressure = bme280.get_pressure()
-    humidity = bme280.get_humidity()
-    lux = ltr559.get_lux()
-    proximity = ltr559.get_proximity()
-    proximity_raw = proximity
+        temperature_adj = temperature - ((temperature_cpu_avg - temperature) / factor)
+        pressure = bme280.get_pressure()
+        humidity = bme280.get_humidity()
+        lux = ltr559.get_lux()
+        proximity = ltr559.get_proximity()
+        proximity_raw = proximity
 
-    if proximity > 1:
-        last_proximity_alert = int(time.time())
-        if proximity > last_proximity:
-            last_proximity = proximity
+        timeSensorCheck = int(time.time())
 
-    if last_proximity_alert > (timeNow - 60):
-        proximity = last_proximity
-    else:
-        last_proximity_alert = 0
-        last_proximity = 0
+        if proximity > 1:
+            last_proximity_alert = int(time.time())
+            if proximity > last_proximity:
+                last_proximity = proximity
 
-    logging.info("""
+        if last_proximity_alert > (timeNow - 60):
+            proximity = last_proximity
+        else:
+            last_proximity_alert = 0
+            last_proximity = 0
+
+        with open('/tmp/es_temperature.txt', 'w') as f:
+            f.write("{:.0f}".format(temperature_adj))
+        with open('/tmp/es_humidity.txt', 'w') as f:
+            f.write("{:.0f}".format(humidity))
+        with open('/tmp/es_light.txt', 'w') as f:
+            f.write("{:.0f}".format(lux))
+        with open('/tmp/es_proximity.txt', 'w') as f:
+            f.write("{:.0f}".format(proximity))
+
+        logging.info("""
 Temperature: {:05.2f} F
 Pressure: {:05.2f} hPa
 Relative humidity: {:05.2f} %
@@ -180,34 +197,28 @@ Light: {:05.2f} Lux
 Proximity: {:05.2f} Unfiltered: {:05.2f}
 """.format(temperature_adj, pressure, humidity, lux, proximity, proximity_raw))
 
-    ######### Display stats on LCD #########
-    lcdBackground = lcdColorBackground
+        ######### Display stats on LCD #########
+        if (timeNow - timeLCDUpdate) >= lcdRefreshInterval:
+            lcdBackground = lcdColorBackground
 
-    message = "Temp: {:.1f}F".format(temperature_adj)
-    if temperature_adj >= thresholdTemp:
-        lcdBackground = lcdColorRed
-    lcdShowText(0, (HEIGHT/4)*1, lcdBackground, message, 1)
+            message = "Temp: {:.1f}F".format(temperature_adj)
+            if temperature_adj >= thresholdTemp:
+                lcdBackground = lcdColorRed
+            lcdShowText(0, (HEIGHT/4)*1, lcdBackground, message, 1)
 
-    message = "Humidity: {:.1f}%".format(humidity)
-    if humidity < thresholdHumidity:
-        lcdBackground = lcdColorOrange
-    else:
-        lcdBackground = lcdColorBackground
-    lcdShowText(0, (HEIGHT/4)*2, lcdBackground, message, 1)
+            message = "Humidity: {:.1f}%".format(humidity)
+            if humidity < thresholdHumidity:
+                lcdBackground = lcdColorOrange
+            else:
+                lcdBackground = lcdColorBackground
+            lcdShowText(0, (HEIGHT/4)*2, lcdBackground, message, 1)
 
-    message = "Light: {:.1f}lux".format(lux)
-    lcdShowText(0, (HEIGHT/4)*3, lcdColorBackground, message, 1)
+            message = "Light: {:.1f}lux".format(lux)
+            lcdShowText(0, (HEIGHT/4)*3, lcdColorBackground, message, 1)
+
+            timeLCDUpdate = int(time.time())
 
     lcdShowTime()
     ######### Display stats on LCD #########
 
-    with open('/tmp/es_temperature.txt', 'w') as f:
-        f.write("{:.0f}".format(temperature_adj))
-    with open('/tmp/es_humidity.txt', 'w') as f:
-        f.write("{:.0f}".format(humidity))
-    with open('/tmp/es_light.txt', 'w') as f:
-        f.write("{:.0f}".format(lux))
-    with open('/tmp/es_proximity.txt', 'w') as f:
-        f.write("{:.0f}".format(proximity))
-
-    time.sleep(2)
+    time.sleep(1)
